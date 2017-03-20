@@ -1,0 +1,295 @@
+diff --git a/src/common.cpp b/src/common.cpp
+index 08cf3ac..e20cd80 100644
+--- a/src/common.cpp
++++ b/src/common.cpp
+@@ -134,7 +134,7 @@ gsl_rng *get_default_rng_handle() {
+     // gsl_rng_default is a global
+     rng_type = gsl_rng_default;
+     gsl_rng *p_rng = gsl_rng_alloc(rng_type);
+-    gsl_rng_set(p_rng, time(NULL));
++    gsl_rng_set(p_rng, 0);
+ 
+     return p_rng;
+ }
+diff --git a/src/common.h b/src/common.h
+index ad16ebf..46298d6 100644
+--- a/src/common.h
++++ b/src/common.h
+@@ -9,10 +9,12 @@
+ #include <vector>
+ 
+ 
++#include <glob.h>
+ #include <gsl/gsl_randist.h>
+ #include "omp.h"
+ 
+ 
++
+ #include "config.h"
+ 
+ 
+diff --git a/src/fastspar.cpp b/src/fastspar.cpp
+index 272aa13..0406c67 100644
+--- a/src/fastspar.cpp
++++ b/src/fastspar.cpp
+@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
+     otu_table.load_otu_file(fastspar_options.otu_filename);
+ 
+     // Initialise a FastSpar object
+-    FastSpar fastspar(&otu_table, fastspar_options.iterations, fastspar_options.exclude_iterations,
++    FastSpar fastspar(&otu_table, fastspar_options.fraction_estimates_fp, fastspar_options.exclude_iterations,
+                       fastspar_options.threshold, fastspar_options.threads);
+ 
+     // Run FastSpar iterations
+@@ -43,9 +43,9 @@ int main(int argc, char **argv) {
+ ///////////////////////////////
+ 
+ // Initialise a FastSpar object (must be parsed a pointer to an OTU table struct and other paramters)
+-FastSpar::FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads) {
++FastSpar::FastSpar(const OtuTable *_otu_table, std::string _fraction_estimates_fp, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads) {
+     otu_table = _otu_table;
+-    iterations = _iterations;
++    fraction_estimates_fp = _fraction_estimates_fp;
+     exclusion_iterations = _exclusion_iterations;
+     exclusion_threshold = _exclusion_threshold;
+     threads = _threads;
+@@ -86,6 +86,13 @@ void FastSpar::infer_correlation_and_covariance() {
+     // Set up rng environment and seed
+     FastSpar::p_rng = get_default_rng_handle();
+ 
++    // Discover all fraction estimates
++    std::string glob_path = fraction_estimates_fp + "*";
++    glob_t glob_result;
++    glob(glob_path.c_str(), GLOB_TILDE, NULL, &glob_result);
++    iterations = glob_result.gl_pathc;
++
++
+ #pragma omp parallel for schedule(static, 1)
+     for (unsigned int i = 0; i < iterations; ++i) {
+         // Create a FastSparIteration object
+@@ -94,8 +101,9 @@ void FastSpar::infer_correlation_and_covariance() {
+ 
+         // TODO: Refactor as a method for FastSparIterations
+ 
+-        // STEP 1: Estimate component fractions and get log ratio variance
+-        fastspar_iteration.estimate_component_fractions(p_rng);
++        // STEP 1: Load fraction estimates from file and get log ratio variance
++        std::string fraction_estimate_fp = glob_result.gl_pathv[i];
++        fastspar_iteration.load_fraction_estimates_from_file(fraction_estimate_fp, otu_table->sample_number, otu_table->otu_number);
+         fastspar_iteration.calculate_fraction_log_ratio_variance();
+ 
+         // STEP 2: Calculate basis variance
+@@ -150,32 +158,58 @@ void FastSpar::infer_correlation_and_covariance() {
+ // Methods for core algorithm //
+ ////////////////////////////////
+ 
+-// For each sample, estimate fractions by drawing from dirichlet distribution parameterised by sample pseudocount
+-void FastSparIteration::estimate_component_fractions(gsl_rng *p_rng) {
+-    // Set size of fraction matrix
+-    fraction_estimates.set_size(otu_table->sample_number, otu_table->otu_number);
+ 
+-    // Set row size
+-    size_t row_size = static_cast<size_t>(otu_table->otu_number);
+-
+-    // Estimate fractions
+-    for(int i = 0; i < otu_table->sample_number; ++i) {
+-        // Get arma row and add pseudo count (then convert to double vector for rng function)
+-        arma::Row<double> row_pseudocount = otu_table->counts.row(i) + 1;
++// Load fraction estimates from file
++void FastSparIteration::load_fraction_estimates_from_file(std::string &filename, unsigned int sample_number, unsigned int otu_number) {
++    // TODO: Catch now filename or non-existent file
++    // Used to store strings from file prior to assignment
++    std::string line;
++    std::string ele;
++    std::stringstream line_stream;
++    std::vector<double> temp_fractions_vector;
++    bool id;
++
++    // Open file stream
++    std::ifstream frac_file;
++    frac_file.open(filename);
++
++    // Process header
++    std::getline(frac_file, line);
++    line_stream.str(line);
++
++    // Iterate header columns
++    while(std::getline(line_stream, ele, '\t')) {
++        //TODO: Add assertion here?
++        // Skip the #OTU ID column (first column)2
++        if (ele == "#OTU ID") {
++            continue;
++        }
++    }
+ 
+-        // Draw from dirichlet dist, storing results in theta double array
+-        double *theta = new double[row_size];
++    // Process sample fractions, need to get OTU IDS first
++    while(std::getline(frac_file, line)) {
++        // (Re)sets variables for loop
++        id = true;
++        line_stream.clear();
+ 
+-        // The function takes double arrays and it seems that you must pass the address of the first element to function
+-        gsl_ran_dirichlet(p_rng, row_size, row_pseudocount.memptr(), theta);
++        // Add current line to line stream and then split by tabs
++        line_stream.str(line);
+ 
+-        // Create arma::Row from double[] and update fractions row
+-        arma::Mat<double> estimated_fractions_row(theta, 1, otu_table->otu_number);
+-        fraction_estimates.row(i) = estimated_fractions_row;
++        while (std::getline(line_stream, ele, '\t')) {
++            // Grab the #OTU ID
++            if (id) {
++                id = false;
++                continue;
++            }
+ 
+-        // Free dynamic memory
+-        delete[] theta;
++            // Add current element to OTU count after converting to double; some OTUs may be corrected and therefore a double
++            temp_fractions_vector.push_back(std::stod(ele));
++        }
+     }
++    // Finally construct the OTU observation matrix and _move_ to struct
++    arma::Mat<double> temp_otu_matrix(temp_fractions_vector);
++    temp_otu_matrix.reshape(sample_number, otu_number);
++    fraction_estimates = std::move(temp_otu_matrix);
+ }
+ 
+ 
+diff --git a/src/fastspar.h b/src/fastspar.h
+index 93b7cc4..547785b 100644
+--- a/src/fastspar.h
++++ b/src/fastspar.h
+@@ -25,6 +25,7 @@ struct FastSpar {
+     unsigned int threads;
+ 
+     // Filenames
++    std::string fraction_estimates_fp;
+     std::string otu_filename;
+     std::string correlation_output_filename;
+     std::string covariance_output_filename;
+@@ -42,7 +43,7 @@ struct FastSpar {
+ 
+ 
+     // Construct FastSpar with a given otu_table and other parameters
+-    FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads);
++    FastSpar(const OtuTable *_otu_table, std::string fraction_estimates, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads);
+ 
+     // Infer correlation and covariance for n iterations
+     void infer_correlation_and_covariance();
+@@ -81,7 +82,7 @@ struct FastSparIteration {
+     FastSparIteration(const OtuTable *_otu_table, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold);
+ 
+     // Estimates component fraction of all OTUs across samples using a dirichlet distribution
+-    void estimate_component_fractions(gsl_rng *p_rng);
++    void load_fraction_estimates_from_file(std::string &filename, unsigned int sample_number, unsigned int otu_number);
+ 
+     // Calculate the log ratio variance of the estimated fractions
+     void calculate_fraction_log_ratio_variance();
+diff --git a/src/fastspar_opts.cpp b/src/fastspar_opts.cpp
+index 4a5a404..3bd5357 100644
+--- a/src/fastspar_opts.cpp
++++ b/src/fastspar_opts.cpp
+@@ -9,6 +9,8 @@ void print_help() {
+     fprintf(stderr, "Usage:\n");
+     fprintf(stderr, "  fastspar [options] --otu_table <of> --correlation <rf> --covariance <vf>\n");
+     fprintf(stderr, "\n");
++    fprintf(stderr, "  -f <ff>, --fraction_estimates <ff>\n");
++    fprintf(stderr, "                Directory containing the fraction estimates\n");
+     fprintf(stderr, "  -c <of>, --otu_table <of>\n");
+     fprintf(stderr, "                OTU input OTU count table\n");
+     fprintf(stderr, "  -r <rf>, -correlation <rf>\n");
+@@ -17,8 +19,6 @@ void print_help() {
+     fprintf(stderr, "                Covariance output table\n");
+     fprintf(stderr, "\n");
+     fprintf(stderr, "Options:\n");
+-    fprintf(stderr, "  -i <int>, --iterations <int>\n");
+-    fprintf(stderr, "                Number of interations to perform (50 default)\n");
+     fprintf(stderr, "  -x <int>, --exclusion_iterations <int>\n");
+     fprintf(stderr, "                Number of exclusion interations to perform (10 default)\n");
+     fprintf(stderr, "  -e <float>, --exclusion_iterations <float>\n");
+@@ -48,10 +48,10 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+     // Commandline arguments (for getlongtops)
+     struct option long_options[] =
+         {
++            {"fraction_estimates", required_argument, NULL, 'f'},
+             {"otu_table", required_argument, NULL, 'c'},
+             {"correlation", required_argument, NULL, 'r'},
+             {"covariance", required_argument, NULL, 'a'},
+-            {"iterations", required_argument, NULL, 'i'},
+             {"exclude_iterations", required_argument, NULL, 'x'},
+             {"threshold", required_argument, NULL, 'e'},
+             {"threads", required_argument, NULL, 't'},
+@@ -67,7 +67,7 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+         int c;
+ 
+         // Parser
+-        c = getopt_long(argc, argv, "hvc:r:a:i:x:e:t:", long_options, &option_index);
++        c = getopt_long(argc, argv, "hvc:r:a:f:x:e:t:", long_options, &option_index);
+ 
+         // If no more arguments to parse, break
+         if (c == -1) {
+@@ -76,6 +76,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+ 
+         // Process current arguments
+         switch(c) {
++            case 'f':
++                fastspar_options.fraction_estimates_fp = optarg;
++                break;
+             case 'c':
+                 fastspar_options.otu_filename = optarg;
+                 break;
+@@ -85,9 +88,6 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+             case 'a':
+                 fastspar_options.covariance_filename = optarg;
+                 break;
+-            case 'i':
+-                fastspar_options.iterations = int_from_optarg(optarg);
+-                break;
+             case 'x':
+                 fastspar_options.exclude_iterations = int_from_optarg(optarg);
+                 break;
+@@ -110,9 +110,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+ 
+ 
+     // Check if have an attempt at arguments
+-    if (argc < 7) {
++    if (argc < 9) {
+         print_help();
+-        fprintf(stderr,"\n%s: error: option -c/--otu_table, -r/--correlation, and -a/--covariance are required\n", argv[0]);
++        fprintf(stderr,"\n%s: error: option -f/--fraction_estimates, -c/--otu_table, -r/--correlation, and -a/--covariance are required\n", argv[0]);
+         exit(1);
+     }
+ 
+@@ -124,6 +124,11 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+ 
+ 
+     // Make sure we have filenames
++    if (fastspar_options.fraction_estimates_fp.empty()) {
++        print_help();
++        fprintf(stderr,"\n%s: error: argument -f/--fraction_estimates is required\n", argv[0]);
++        exit(1);
++    }
+     if (fastspar_options.otu_filename.empty()) {
+         print_help();
+         fprintf(stderr,"\n%s: error: argument -c/--otu_table is required\n", argv[0]);
+diff --git a/src/fastspar_opts.h b/src/fastspar_opts.h
+index 2b7ff40..2407b9c 100644
+--- a/src/fastspar_opts.h
++++ b/src/fastspar_opts.h
+@@ -10,12 +10,12 @@
+ 
+ struct FastsparOptions {
+     // Set some default parameters
+-    unsigned int iterations = 50;
+     unsigned int exclude_iterations = 10;
+     float threshold = 0.1;
+     unsigned int threads = 1;
+ 
+     // Declare some important variables
++    std::string fraction_estimates_fp;
+     std::string otu_filename;
+     std::string correlation_filename;
+     std::string covariance_filename;

@@ -1,0 +1,104 @@
+diff --git a/SparCC.py b/SparCC.py
+index 2ddee82..9d5430d 100755
+--- a/SparCC.py
++++ b/SparCC.py
+@@ -6,11 +6,16 @@
+ Module for estimating the correlations in the basis when only compositional data is available.
+ '''
+ 
++
++import glob
++import os
++
++
+ import warnings
+ import numpy as np
+ from numpy import (unravel_index, argmax, ones, corrcoef, cov, r_,
+                    diag, sqrt, where, nan)
+-from core_methods import to_fractions
++from core_methods import read_in_fraction_estimates
+ from compositional_methods import variation_mat, clr
+ from analysis_methods import correlation
+ try:
+@@ -243,14 +248,21 @@ def main(counts, method='SparCC', **kwargs):
+     cor_list = []  # list of cor matrices from different random fractions
+     var_list = []  # list of cov matrices from different random fractions
+     oprint   = kwargs.pop('oprint',True)
+-    n_iter     = kwargs.pop('iter',20)  # number of iterations 
+     norm     = kwargs.pop('norm','dirichlet')
+     log      = kwargs.pop('log','True')
+     th       = kwargs.setdefault('th',0.1)   # exclusion threshold for iterative sparse algo
++    fraction_estimates_fp = kwargs.pop('fraction_estimates_fp')
++
++    # Glob the fraction estimate input files and set the number of iterations
++    fraction_estimates_fps = glob.glob(os.path.join(fraction_estimates_fp, '*'))
++    n_iter = len(fraction_estimates_fps)
++
+     if method in ['sparcc', 'clr']:
+         for i in range(n_iter):
+             if oprint: print '\tRunning iteration' + str(i)
+-            fracs = to_fractions(counts, method=norm)
++            # Load fraction estimates
++            fracs = read_in_fraction_estimates(fraction_estimates_fps[i])
++
+             v_sparse, cor_sparse, cov_sparse = basis_corr(fracs, method=method, **kwargs)
+             var_list.append(np.diag(cov_sparse))
+             cor_list.append(cor_sparse)
+@@ -289,14 +301,14 @@ if __name__ == '__main__':
+               'Usage:   python SparCC.py counts_file [options]\n'
+               'Example: python SparCC.py example/fake_data.txt -i 20 --cor_file=example/basis_corr/cor_mat_sparcc.out')
+     parser = OptionParser(usage)
++    parser.add_option("-f", "--fraction_estimates", dest="fraction_estimates_fp", type = 'str',
++                      help="Directory containing fraction estimates")
+     parser.add_option("-c", "--cor_file", dest="cor_file", type = 'str',
+                       help="File to which correlation matrix will be written.")
+     parser.add_option("-v", "--cov_file", dest="cov_file", type = 'str',
+                       help="File to which covariance matrix will be written.")
+     parser.add_option("-a", "--algo", dest="algo", default='SparCC',
+                       help="Name of algorithm used to compute correlations (SparCC (default) | pearson | spearman | kendall)")
+-    parser.add_option("-i", "--iter", dest = 'iter', type ='int', default=20,
+-                      help="Number of inference iterations to average over (20 default).")
+     parser.add_option("-x", "--xiter", dest = 'xiter', type ='int', default=10,
+                       help="Number of exclusion iterations to remove strongly correlated pairs (10 default).")
+     parser.add_option("-t", "--thershold", dest = 'th', type ='float', default=0.1,
+diff --git a/core_methods.py b/core_methods.py
+index 85a7c98..132dc0b 100644
+--- a/core_methods.py
++++ b/core_methods.py
+@@ -4,7 +4,13 @@ Created on Jun 24, 2012
+ @author: jonathanfriedman
+ '''
+ 
++
++import os.path
++import sys
++
++
+ from pandas import DataFrame as DF
++import pandas.io.parsers
+ import numpy as np
+ 
+ 
+@@ -297,6 +303,22 @@ def to_fractions(frame, method='dirichlet', p_counts=1, axis=0):
+         raise ValueError, 'Unsupported method "%s"' %method
+     return fracs
+ 
++
++def read_in_fraction_estimates(fraction_estimates_fp):
++    """Read in fraction estimates from file.
++
++    Parameters
++    ----------
++    fraction_estimates_fp: String representation of the fraction estimate file
++        path.
++
++    Returns
++    -------
++    fraction_estimates: Numpy array of fraction estimates"""
++    fraction_estimates = pandas.io.parsers.read_table(fraction_estimates_fp, index_col=0)
++    return fraction_estimates.transpose()
++
++
+ def rarefy(frame,n, replace=False, remove_shallow=None):
+     '''
+     Down-sample all rows to have exactly n counts in total for each row.
