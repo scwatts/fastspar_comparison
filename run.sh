@@ -1,6 +1,6 @@
 #!/bin/bash
 # Download counts and generate fractions
-./assets/generate_fractions.py -c fake_data.txt -o fraction_estimates -n 50
+./assets/generate_fractions.py -c assets/fake_data.txt -o fraction_estimates -n 50
 
 # Clone FastSpar and patch
 # -l is critical to applying patch correctly (ignores whitespace); -p1 removes the a/ and b/ from file descriptors
@@ -21,3 +21,6 @@ mkdir output
 
 # Run SparCC
 ./sparcc/SparCC.py assets/fake_data.txt -f fraction_estimates/ -c output/sparcc_cor.tsv -v output/sparcc_cov.tsv
+
+# Compare outputs
+./assets/compare_outputs.R
