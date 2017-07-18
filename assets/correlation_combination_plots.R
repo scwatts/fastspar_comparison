@@ -24,10 +24,10 @@ n <- length(l.cor)
 perms <- list(); for (i in 1:n) { for (j in 1:n) { perms[[i+(j-1)*n]] <-  c(i, j) }}
 
 # Create dataframes for each permutation
-d.cor.perms <- lapply(perms, function(ij) 
-{ 
-  i = ij[[1]]; 
-  j = ij[[2]]; 
+d.cor.perms <- lapply(perms, function(ij)
+{
+  i = ij[[1]];
+  j = ij[[2]];
   data.frame(x=l.cor[[i]], y=l.cor[[j]], name=paste(names(l.cor)[ij], collapse='_') )
 })
 

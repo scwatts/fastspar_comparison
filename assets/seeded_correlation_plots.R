@@ -38,15 +38,16 @@ if (equal_cov) {
 ### Plot
 d <- data.frame(fs=unlist(d.fastspar.cor), sp=unlist(d.sparcc.cor.rnd))
 
-png(filename='output/plots/seeded_fastspar_sparcc_plot.png', height=1000, width=1000)
+png(filename='output/plots/seeded_fastspar_sparcc_plot.png', height=1000, width=1000, res=160)
 {
+  # Linear model for r-sqaured value
+  linm <- lm(d$fs ~ d$sp)
+  summary(linm)
+
+  # Plot
   g <- ggplot(d, aes(x=fs, y=sp)) + geom_point(alpha=0.1) + geom_abline(slope=1, intercept=0, colour="red")
   g <- g + xlim(-0.5, 1) + ylim(-0.5, 1)
   g <- g + labs(x='FastSpar correlation', y='SparCC correlation', title='Seeded FastSpar and SparCC correlation for each OTU pair')
   g
 }
 dev.off()
-
-# Linear modelling for r-sqaured value
-linm <- lm(d$fs ~ d$sp)
-summary(linm)
