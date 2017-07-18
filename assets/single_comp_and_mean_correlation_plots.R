@@ -45,7 +45,7 @@ d.cor.var <- data.frame(fs=l.cor.fs.zip.var, sp=l.cor.sp.zip.var)
 ### Plotting
 ## Correlations
 # Mean of OTU correlations
-png(filename='output/plots/mean_correlation_plot.png', height=1000, width=1000, res=160)
+png(filename='output/plots/correlation_mean_both.png', height=1000, width=1000, res=160)
 {
   # Linear modelling for r-sqaured value
   linm <- lm(d.cor.mn$fs ~ d.cor.mn$sp)
@@ -62,7 +62,7 @@ dev.off()
 # All correlates - FastSpar v Fastspar
 d.ff <- data.frame(first=l.cor.fs[[1]], second=l.cor.fs[[2]])
 
-png(filename='output/plots/single_fastspar_fastspar_plot.png', height=1000, width=1000, res=160)
+png(filename='output/plots/corrrelation_single_fastspar_fastspar.png', height=1000, width=1000, res=160)
 {
   g <- ggplot(d.ff, aes(x=first, y=second)) + geom_point(alpha=0.1) + geom_abline(slope=1, intercept=0, colour="red")
   g <- g + xlim(-0.5, 1) + ylim(-0.5, 1)
@@ -74,7 +74,7 @@ dev.off()
 # All correlates - SparCC v SparCC
 d.s <- data.frame(first=l.cor.sp[[1]], second=l.cor.sp[[2]])
 
-png(filename='output/plots/single_sparcc_sparcc_plot.png', height=1000, width=1000, res=160)
+png(filename='output/plots/correlation_single_sparcc_sparcc.png', height=1000, width=1000, res=160)
 {
   g <- ggplot(d.s, aes(x=first, y=second)) + geom_point(alpha=0.1) + geom_abline(slope=1, intercept=0, colour="red")
   g <- g + xlim(-0.5, 1) + ylim(-0.5, 1)
@@ -113,7 +113,7 @@ dev.off()
 
 ## Variance of each OTU correlate
 # Distribution of FastSpar and SparCC OTU correlate variance
-png(filename='output/plots/fastspar_variance.png', height=1000, width=1000, res=160)
+png(filename='output/plots/variance_fastspar.png', height=1000, width=1000, res=160)
 {
   g <- ggplot(d.cor.var, aes(x=fs))
   g <- g + geom_histogram(bins=20)
@@ -122,7 +122,7 @@ png(filename='output/plots/fastspar_variance.png', height=1000, width=1000, res=
   g
 }
 dev.off()
-png(filename='output/plots/sparcc_variance.png', height=1000, width=1000, res=160)
+png(filename='output/plots/variance_sparcc.png', height=1000, width=1000, res=160)
 {
   g <- ggplot(d.cor.var, aes(x=sp))
   g <- g + geom_histogram(bins=20)

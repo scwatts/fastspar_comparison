@@ -36,7 +36,7 @@ d.cor.perms.combined <- do.call('rbind', d.cor.perms)
 
 
 ### Plot
-png(filename='~/temp/pings/all_of_the_permutations.png', height=20000, width=20000)
+png(filename='output/plots/correlation_permutation_all.png', height=20000, width=20000)
 {
   ggplot(d.cor.perms.combined, aes(x=x, y=y)) + geom_point(alpha=0.25) + facet_wrap( ~ name, scales='free')
 }

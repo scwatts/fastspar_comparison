@@ -38,7 +38,7 @@ if (equal_cov) {
 ### Plot
 d <- data.frame(fs=unlist(d.fastspar.cor), sp=unlist(d.sparcc.cor.rnd))
 
-png(filename='output/plots/seeded_fastspar_sparcc_plot.png', height=1000, width=1000, res=160)
+png(filename='output/plots/correlation_seeded_both.png', height=1000, width=1000, res=160)
 {
   # Linear model for r-sqaured value
   linm <- lm(d$fs ~ d$sp)
