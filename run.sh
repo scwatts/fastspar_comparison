@@ -36,9 +36,6 @@ mkdir -p output/{seeded_estimates,replication}
 # Run SparCC
 ./sparcc/SparCC.py assets/otu_table_250_250.tsv -f fraction_estimates/ -c output/seeded_estimates/sparcc_cor.tsv -v output/seeded_estimates/sparcc_cov.tsv
 
-# Compare outputs
-./assets/compare_outputs.R
-
 # Revert patches applied to FastSpar and SparCC applied above
 (cd fastspar && git clean -fd && git checkout -- .)
 (cd sparcc && hg revert --all)
@@ -62,10 +59,10 @@ parallel --delay 5 './fastspar/src/fastspar -c assets/otu_table_250_250.tsv -r o
 mkdir -p output/plots/
 
 # FastSpar v FastSpar; SparCC v SparCC; mean FastSpar v mean SparCC
-./assets/single_comp_and_mean_correlation_plots.R
+./assets/plots_correlation_replication.R
 
 # Seeded FastSpar v SparCC
-./assets/seeded_correlation_plots.R
+./assets/plots_correlation_seeded.R
 
-# Each correlation output
+# Each correlation output; beware, this plot requires a considerable amount of RAM
 ./assets/correlation_combination_plots.R
