@@ -167,7 +167,7 @@ png(filename='output/plots/variance_scatterplot.png', height=1000, width=1000, r
   g <- ggplot(data.frame(fs=l.cor.fs.zip.var, sp=l.cor.sp.zip.var), aes(x=fs, y=sp)) + geom_point(alpha=0.05)
   g <- g + xlim(0, 4.5e-4) + ylim(0, 4.5e-4)
   g <- g + scale_y_continuous(labels=scales::comma) + scale_x_continuous(labels=scales::comma)
-  g <- g + labs(title='FastSpar v. SparCC OTU correlate variance', x='FastSpar', y='SparCC')
+  g <- g + labs(title='FastSpar and SparCC OTU correlate variance scatterplot', x='FastSpar', y='SparCC')
   margin_plot_params <- list(size = 0)
   ggMarginal(g, type='histogram', xparams=margin_plot_params, yparams=margin_plot_params, bins=50, fill='#595959')
 }
