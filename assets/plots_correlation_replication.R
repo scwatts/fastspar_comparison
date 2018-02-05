@@ -45,10 +45,19 @@ l.cor.sp.zip.var <- sapply(l.cor.sp.zip, var)
 d.cor.var <- data.frame(fs=l.cor.fs.zip.var, sp=l.cor.sp.zip.var)
 
 
+# # Calculate mean Rsq values for all combinations for a SparCC and then for FastSpar across the 20 replicates
+# combin <- list(); for (i in 1:n) { for (j in 1:n) { if (i >= j) { next; }; combin[[length(combin)+1]] <-  c(i, j) }}
+# l.cor.fs.r <- sapply(combin, function(ij) { i <- ij[1]; j <- ij[2]; m <- lm(l.cor.fs[[i]] ~ l.cor.fs[[j]]); summary(m)$r.squared })
+# l.cor.sp.r <- sapply(combin, function(ij) { i <- ij[1]; j <- ij[2]; m <- lm(l.cor.sp[[i]] ~ l.cor.sp[[j]]); summary(m)$r.squared })
+#
+# round(mean(l.cor.fs.r), 4)
+# round(mean(l.cor.sp.r), 4)
+
+
 ### Plotting
 ## Correlations
 # Mean of OTU correlations
-png(filename='output/plots/correlation_mean_both.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/correlation_mean_both.svg', height=8, width=10)
 {
   # Linear modelling for r-sqaured value
   linm <- lm(d.cor.mn$fs ~ d.cor.mn$sp)
@@ -65,7 +74,7 @@ dev.off()
 # All correlates - FastSpar v Fastspar
 d.ff <- data.frame(first=l.cor.fs[[1]], second=l.cor.fs[[2]])
 
-png(filename='output/plots/corrrelation_single_fastspar_fastspar.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/correlation_single_fastspar_fastspar.svg', height=8, width=10)
 {
   g <- ggplot(d.ff, aes(x=first, y=second)) + geom_point(alpha=0.1) + geom_abline(slope=1, intercept=0, colour="red")
   g <- g + xlim(-0.5, 1) + ylim(-0.5, 1)
@@ -77,7 +86,7 @@ dev.off()
 # All correlates - SparCC v SparCC
 d.s <- data.frame(first=l.cor.sp[[1]], second=l.cor.sp[[2]])
 
-png(filename='output/plots/correlation_single_sparcc_sparcc.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/correlation_single_sparcc_sparcc.svg', height=8, width=10)
 {
   g <- ggplot(d.s, aes(x=first, y=second)) + geom_point(alpha=0.1) + geom_abline(slope=1, intercept=0, colour="red")
   g <- g + xlim(-0.5, 1) + ylim(-0.5, 1)
@@ -116,7 +125,7 @@ dev.off()
 
 ## Variance of each OTU correlate
 # Distribution of FastSpar and SparCC OTU correlate variance
-png(filename='output/plots/variance_fastspar.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/variance_fastspar.svg', height=8, width=10)
 {
   g <- ggplot(d.cor.var, aes(x=fs))
   g <- g + geom_histogram(bins=20)
@@ -125,7 +134,7 @@ png(filename='output/plots/variance_fastspar.png', height=1000, width=1000, res=
   g
 }
 dev.off()
-png(filename='output/plots/variance_sparcc.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/variance_sparcc.svg', height=8, width=10)
 {
   g <- ggplot(d.cor.var, aes(x=sp))
   g <- g + geom_histogram(bins=20)
@@ -136,7 +145,7 @@ png(filename='output/plots/variance_sparcc.png', height=1000, width=1000, res=16
 dev.off()
 
 # qqplot of FastSpar and SparCC OTU correlate variance distributions
-png(filename='output/plots/variance_qqplot.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/variance_qqplot.svg', height=8, width=10)
 {
   fs <- sort(l.cor.fs.zip.var)
   sp <- sort(l.cor.sp.zip.var)
@@ -162,7 +171,7 @@ png(filename='output/plots/variance_qqplot.png', height=1000, width=1000, res=16
 dev.off()
 
 # Scatter plot of FastSpar and SparCC variance
-png(filename='output/plots/variance_scatterplot.png', height=1000, width=1000, res=160)
+svg(filename='output/plots/variance_scatterplot.svg', height=8, width=10)
 {
   g <- ggplot(data.frame(fs=l.cor.fs.zip.var, sp=l.cor.sp.zip.var), aes(x=fs, y=sp)) + geom_point(alpha=0.05)
   g <- g + xlim(0, 4.5e-4) + ylim(0, 4.5e-4)
