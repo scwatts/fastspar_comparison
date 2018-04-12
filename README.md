@@ -8,7 +8,6 @@ The scripts in this repository compare the correlations computed by FastSpar and
     * 20 independent replicates of the same dataset
 5. Plot results
 
-
 The repository containing a less detailed comparison of all SparCC implementations can be found [here](https://github.com/scwatts/sparcc_implementation_comparison).
 
 # Performing this analysis
