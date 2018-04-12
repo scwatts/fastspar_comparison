@@ -2,13 +2,16 @@
 
 
 ###
-# Options
+# Init and Options
 ###
 # Print commands as they're executed
 set -x
 
 # Required for SparCC to run without thread oversubscription on a single CPU
 export OMP_NUM_THREADS=1
+
+# Install some R packages
+R -e "install.packages(c('ggplot2', 'reshape2'), repos='http://cran.rstudio.com/')"
 
 
 ###
@@ -45,7 +48,7 @@ mkdir -p output/{seeded_estimates,replication}
 # Run FastSpar and SparCC on same dataset 20 times
 ###
 # Recompile FastSpar without patches
-(cd fastspar && ./configure && make -j)
+(cd fastspar && ./autogen.sh && ./configure && make -j)
 
 # Run replication series; using delay for FastSpar so we get different seeds (seeding based on time)
 parallel './sparcc/SparCC.py assets/otu_table_250_250.tsv -c output/replication/sparcc_cor_{}.tsv -v output/replication/sparcc_cov_{}.tsv -i 48 -x 10' ::: {1..20}
