@@ -10,7 +10,7 @@ echo 'deb http://archive.ubuntu.com/ubuntu xenial main universe' > /etc/apt/sour
 
 # Install packages
 apt-get update
-apt-get install -y git mercurial build-essential libarmadillo-dev libgsl-dev libopenblas-dev python-numpy python-pandas python3-numpy r-base-core ca-certificates --no-install-recommends
+apt-get install -y git mercurial autoconf build-essential libarmadillo-dev libgsl-dev libopenblas-dev python-numpy python-pandas python3-numpy r-base-core ca-certificates --no-install-recommends
 
 # Change into tmp directory
 cd /tmp/

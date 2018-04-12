@@ -20,7 +20,7 @@ export OMP_NUM_THREADS=1
 # Clone FastSpar and patch
 # -l is critical to applying patch correctly (ignores whitespace); -p1 removes the a/ and b/ from file descriptors
 git clone https://github.com/scwatts/fastspar.git
-(cd fastspar && patch -p1 < ../patches/fastspar.patch && ./configure && make -j)
+(cd fastspar && patch -p1 < ../patches/fastspar.patch && ./autogen.sh && ./configure && make -j)
 
 # Clone SparCC and patch
 # -l is critical to applying patch correctly (ignores whitespace); -p1 removes the a/ and b/ from file descriptors
