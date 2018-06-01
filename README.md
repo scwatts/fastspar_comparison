@@ -35,7 +35,7 @@ echo 'deb http://archive.ubuntu.com/ubuntu xenial main universe' > /etc/apt/sour
 
 # Install packages
 apt-get update
-apt-get install -y git mercurial autoconf automake build-essential parallel libgsl-dev libopenblas-dev python-numpy python-pandas python3-numpy r-base-core ca-certificates --no-install-recommends
+apt-get install -y git mercurial autoconf autoconf-archive automake build-essential parallel libgsl-dev libopenblas-dev python-numpy python-pandas python3-numpy r-base-core ca-certificates --no-install-recommends
 
 ```
 The latest version of Armadillo to be compiled:
