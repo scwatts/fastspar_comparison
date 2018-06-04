@@ -34,7 +34,7 @@ hg clone https://bitbucket.org/yonatanf/sparcc
 mkdir -p output/{seeded_estimates,replication}
 
 # Run FastSpar
-./fastspar/src/fastspar -f fraction_estimates/ -c assets/otu_table_250_250.tsv -r output/seeded_estimates/fastspar_cor.tsv -a output/seeded_estimates/fastspar_cov.tsv -y
+./fastspar/src/fastspar -f fraction_estimates/ -c assets/otu_table_250_250.tsv -r output/seeded_estimates/fastspar_cor.tsv -a output/seeded_estimates/fastspar_cov.tsv -y -s 0
 
 # Run SparCC
 ./sparcc/SparCC.py assets/otu_table_250_250.tsv -f fraction_estimates/ -c output/seeded_estimates/sparcc_cor.tsv -v output/seeded_estimates/sparcc_cov.tsv
@@ -50,9 +50,9 @@ mkdir -p output/{seeded_estimates,replication}
 # Recompile FastSpar without patches
 (cd fastspar && ./autogen.sh && ./configure && make -j)
 
-# Run replication series; using delay for FastSpar so we get different seeds (seeding based on time)
+# Run replication series
 parallel './sparcc/SparCC.py assets/otu_table_250_250.tsv -c output/replication/sparcc_cor_{}.tsv -v output/replication/sparcc_cov_{}.tsv -i 48 -x 10' ::: {1..20}
-parallel --delay 5 './fastspar/src/fastspar -c assets/otu_table_250_250.tsv -r output/replication/fastspar_cor_{}.tsv -a output/replication/fastspar_cov_{}.tsv -i 48 -x 10 -y' ::: {1..20}
+parallel './fastspar/src/fastspar -c assets/otu_table_250_250.tsv -r output/replication/fastspar_cor_{}.tsv -a output/replication/fastspar_cov_{}.tsv -i 48 -x 10 -y -s {}' ::: {1..20}
 
 
 ###

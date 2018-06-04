@@ -1,21 +1,8 @@
-diff --git a/src/common.cpp b/src/common.cpp
-index 08cf3ac..e20cd80 100644
---- a/src/common.cpp
-+++ b/src/common.cpp
-@@ -134,7 +134,7 @@ gsl_rng *get_default_rng_handle() {
-     // gsl_rng_default is a global
-     rng_type = gsl_rng_default;
-     gsl_rng *p_rng = gsl_rng_alloc(rng_type);
--    gsl_rng_set(p_rng, time(NULL));
-+    gsl_rng_set(p_rng, 0);
- 
-     return p_rng;
- }
 diff --git a/src/common.h b/src/common.h
-index ad16ebf..46298d6 100644
+index f9f728d..3a0cda3 100644
 --- a/src/common.h
 +++ b/src/common.h
-@@ -9,10 +9,12 @@
+@@ -9,6 +9,7 @@
  #include <vector>
  
  
@@ -23,39 +10,34 @@ index ad16ebf..46298d6 100644
  #include <gsl/gsl_randist.h>
  #include "omp.h"
  
- 
-+
- #include "config.h"
- 
- 
 diff --git a/src/fastspar.cpp b/src/fastspar.cpp
-index fe0188b..975d31e 100644
+index b940a4a..8f93ee4 100644
 --- a/src/fastspar.cpp
 +++ b/src/fastspar.cpp
-@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
+@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
  
  
      // Initialise a FastSpar object
 -    FastSpar fastspar(&otu_table, fastspar_options.iterations, fastspar_options.exclude_iterations,
 +    FastSpar fastspar(&otu_table, fastspar_options.fraction_estimates_fp, fastspar_options.exclude_iterations,
-                       fastspar_options.threshold, fastspar_options.threads);
+                       fastspar_options.threshold, fastspar_options.threads, fastspar_options.seed);
  
- 
-@@ -107,9 +107,9 @@ bool continue_exit_prompt() {
+     // Run FastSpar iterations
+@@ -100,9 +100,9 @@ bool continue_exit_prompt() {
  ///////////////////////////////
  
  // Initialise a FastSpar object (must be parsed a pointer to an OTU table struct and other paramters)
--FastSpar::FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads) {
-+FastSpar::FastSpar(const OtuTable *_otu_table, std::string _fraction_estimates_fp, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads) {
+-FastSpar::FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads, unsigned int seed) {
++FastSpar::FastSpar(const OtuTable *_otu_table, std::string _fraction_estimates_fp, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads, unsigned int seed) {
      otu_table = _otu_table;
 -    iterations = _iterations;
 +    fraction_estimates_fp = _fraction_estimates_fp;
      exclusion_iterations = _exclusion_iterations;
      exclusion_threshold = _exclusion_threshold;
      threads = _threads;
-@@ -150,6 +150,13 @@ void FastSpar::infer_correlation_and_covariance() {
-     // Set up rng environment and seed
-     FastSpar::p_rng = get_default_rng_handle();
+@@ -141,6 +141,13 @@ void FastSpar::infer_correlation_and_covariance() {
+         exit(0);
+     }
  
 +    // Discover all fraction estimates
 +    std::string glob_path = fraction_estimates_fp + "*";
@@ -67,7 +49,7 @@ index fe0188b..975d31e 100644
  #pragma omp parallel for schedule(static, 1)
      for (unsigned int i = 0; i < iterations; ++i) {
          // Create a FastSparIteration object
-@@ -158,8 +165,9 @@ void FastSpar::infer_correlation_and_covariance() {
+@@ -149,8 +156,9 @@ void FastSpar::infer_correlation_and_covariance() {
  
          // TODO: Refactor as a method for FastSparIterations
  
@@ -79,7 +61,7 @@ index fe0188b..975d31e 100644
          fastspar_iteration.calculate_fraction_log_ratio_variance();
  
          // STEP 2: Calculate basis variance
-@@ -214,32 +222,58 @@ void FastSpar::infer_correlation_and_covariance() {
+@@ -205,32 +213,58 @@ void FastSpar::infer_correlation_and_covariance() {
  // Methods for core algorithm //
  ////////////////////////////////
  
@@ -159,7 +141,7 @@ index fe0188b..975d31e 100644
  
  
 diff --git a/src/fastspar.h b/src/fastspar.h
-index 7e73c4b..b9f2c43 100644
+index 5ae74cc..7fba5b2 100644
 --- a/src/fastspar.h
 +++ b/src/fastspar.h
 @@ -25,6 +25,7 @@ struct FastSpar {
@@ -174,8 +156,8 @@ index 7e73c4b..b9f2c43 100644
  
  
      // Construct FastSpar with a given otu_table and other parameters
--    FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads);
-+    FastSpar(const OtuTable *_otu_table, std::string fraction_estimates, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads);
+-    FastSpar(const OtuTable *_otu_table, unsigned int _iterations, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads, unsigned int seed);
++    FastSpar(const OtuTable *_otu_table, std::string _fraction_estimates, unsigned int _exclusion_iterations, unsigned int _exclusion_threshold, unsigned int _threads, unsigned int _seed);
  
      // Infer correlation and covariance for n iterations
      void infer_correlation_and_covariance();
@@ -189,28 +171,28 @@ index 7e73c4b..b9f2c43 100644
      // Calculate the log ratio variance of the estimated fractions
      void calculate_fraction_log_ratio_variance();
 diff --git a/src/fastspar_opts.cpp b/src/fastspar_opts.cpp
-index e39d022..273ec9b 100644
+index a3adfeb..4561de5 100644
 --- a/src/fastspar_opts.cpp
 +++ b/src/fastspar_opts.cpp
 @@ -9,6 +9,8 @@ void print_help() {
      fprintf(stderr, "Usage:\n");
-     fprintf(stderr, "  fastspar [options] --otu_table <of> --correlation <rf> --covariance <vf>\n");
+     fprintf(stderr, "  fastspar [options] --otu_table <path> --correlation <path> --covariance <path>\n");
      fprintf(stderr, "\n");
-+    fprintf(stderr, "  -f <ff>, --fraction_estimates <ff>\n");
++    fprintf(stderr, "  -f <path>, --fraction_estimates <path>\n");
 +    fprintf(stderr, "                Directory containing the fraction estimates\n");
-     fprintf(stderr, "  -c <of>, --otu_table <of>\n");
+     fprintf(stderr, "  -c <path>, --otu_table <path>\n");
      fprintf(stderr, "                OTU input OTU count table\n");
-     fprintf(stderr, "  -r <rf>, -correlation <rf>\n");
+     fprintf(stderr, "  -r <path>, -correlation <path>\n");
 @@ -17,8 +19,6 @@ void print_help() {
      fprintf(stderr, "                Covariance output table\n");
      fprintf(stderr, "\n");
      fprintf(stderr, "Options:\n");
 -    fprintf(stderr, "  -i <int>, --iterations <int>\n");
--    fprintf(stderr, "                Number of interations to perform (50 default)\n");
+-    fprintf(stderr, "                Number of interations to perform (default: 50)\n");
      fprintf(stderr, "  -x <int>, --exclusion_iterations <int>\n");
-     fprintf(stderr, "                Number of exclusion interations to perform (10 default)\n");
-     fprintf(stderr, "  -e <float>, --exclusion_iterations <float>\n");
-@@ -50,10 +50,10 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+     fprintf(stderr, "                Number of exclusion interations to perform (default: 10)\n");
+     fprintf(stderr, "  -e <float>, --threshold <float>\n");
+@@ -52,10 +52,10 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
      // Commandline arguments (for getlongtops)
      struct option long_options[] =
          {
@@ -222,16 +204,16 @@ index e39d022..273ec9b 100644
              {"exclude_iterations", required_argument, NULL, 'x'},
              {"threshold", required_argument, NULL, 'e'},
              {"threads", required_argument, NULL, 't'},
-@@ -70,7 +70,7 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+@@ -73,7 +73,7 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
          int c;
  
          // Parser
--        c = getopt_long(argc, argv, "hvc:r:a:i:x:e:t:y", long_options, &option_index);
-+        c = getopt_long(argc, argv, "hvc:r:a:i:x:e:t:yf:", long_options, &option_index);
+-        c = getopt_long(argc, argv, "hvc:r:a:i:x:e:t:s:y", long_options, &option_index);
++        c = getopt_long(argc, argv, "hvc:r:a:i:x:e:t:s:yf:", long_options, &option_index);
  
          // If no more arguments to parse, break
          if (c == -1) {
-@@ -79,6 +79,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+@@ -82,6 +82,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
  
          // Process current arguments
          switch(c) {
@@ -241,7 +223,7 @@ index e39d022..273ec9b 100644
              case 'c':
                  fastspar_options.otu_filename = optarg;
                  break;
-@@ -88,9 +91,6 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+@@ -91,9 +94,6 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
              case 'a':
                  fastspar_options.covariance_filename = optarg;
                  break;
@@ -251,7 +233,7 @@ index e39d022..273ec9b 100644
              case 'x':
                  fastspar_options.exclude_iterations = int_from_optarg(optarg);
                  break;
-@@ -116,9 +116,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+@@ -122,9 +122,9 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
  
  
      // Check if have an attempt at arguments
@@ -263,7 +245,7 @@ index e39d022..273ec9b 100644
          exit(1);
      }
  
-@@ -130,6 +130,11 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
+@@ -136,6 +136,11 @@ FastsparOptions get_commandline_arguments(int argc, char **argv) {
  
  
      // Make sure we have filenames
@@ -276,10 +258,10 @@ index e39d022..273ec9b 100644
          print_help();
          fprintf(stderr,"\n%s: error: argument -c/--otu_table is required\n", argv[0]);
 diff --git a/src/fastspar_opts.h b/src/fastspar_opts.h
-index e5d36e4..3e13ff2 100644
+index 25c5493..a330527 100644
 --- a/src/fastspar_opts.h
 +++ b/src/fastspar_opts.h
-@@ -20,6 +20,7 @@ struct FastsparOptions {
+@@ -21,6 +21,7 @@ struct FastsparOptions {
      std::string otu_filename;
      std::string correlation_filename;
      std::string covariance_filename;
